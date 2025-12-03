@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "../components/ui/button"
 import { Card, CardContent } from "../components/ui/card"
 import { Montserrat, Inter } from "next/font/google"
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["600", "700", "800"] })
 const inter = Inter({ subsets: ["latin"] })
+
+type CartItem = {
+  id: number
+  qty: number
+}
 
 const PRODUCTS = [
   { id: 1, name: "RTX 4090 Suprim X", price: 1999, img: "/images/msi2.jpg" },
@@ -16,31 +22,34 @@ const PRODUCTS = [
   { id: 6, name: "GK50Z RGB Keyboard", price: 129, img: "/images/msi6.jpg" }
 ]
 
-function safeParseCart(): { id: number; qty: number }[] {
+function safeParseCart(): CartItem[] {
   try {
-    const raw = JSON.parse(localStorage.getItem("cart") || "[]")
+    const raw = JSON.parse(localStorage.getItem("cart") ?? "[]")
     if (!Array.isArray(raw)) return []
     return raw
-      .map((r: any) => ({ id: Number(r.id), qty: Math.max(0, Number(r.qty) || 0) }))
-      .filter((r: any) => Number.isInteger(r.id) && r.qty > 0)
+      .map((r: unknown) => {
+        if (typeof r !== "object" || r === null) return null
+        const obj = r as Record<string, unknown>
+        const id = Number(obj.id)
+        const qty = Math.max(0, Number(obj.qty) || 0)
+        if (!Number.isInteger(id) || qty <= 0) return null
+        return { id, qty }
+      })
+      .filter((x): x is CartItem => x !== null)
   } catch {
     return []
   }
 }
 
 export default function Cart() {
-  // items starts empty to avoid SSR mismatch; we use mounted to prevent initial overwrite
-  const [items, setItems] = useState<{ id: number; qty: number }[]>([])
+  const [items, setItems] = useState<CartItem[]>([])
   const [mounted, setMounted] = useState(false)
 
-  // load cart once on client mount
   useEffect(() => {
     setMounted(true)
-    const saved = safeParseCart()
-    setItems(saved)
+    setItems(safeParseCart())
   }, [])
 
-  // persist only after we've loaded initial cart (mounted === true)
   useEffect(() => {
     if (!mounted) return
     localStorage.setItem("cart", JSON.stringify(items))
@@ -49,14 +58,18 @@ export default function Cart() {
   const productFor = (id: number) => PRODUCTS.find(p => p.id === id)
 
   const changeQty = (id: number, qty: number) => {
-    if (qty <= 0) setItems(items.filter(i => i.id !== id))
-    else setItems(items.map(i => i.id === id ? { ...i, qty } : i))
+    if (qty <= 0) {
+      setItems(items.filter(i => i.id !== id))
+    } else {
+      setItems(items.map(i => (i.id === id ? { ...i, qty } : i)))
+    }
   }
 
   const subtotal = items.reduce((s, it) => {
     const p = productFor(it.id)
     return s + (p ? p.price * it.qty : 0)
   }, 0)
+
   const tax = subtotal * 0.1
   const total = subtotal + tax
 
@@ -65,7 +78,7 @@ export default function Cart() {
       <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/80 border-b border-red-900/30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/images/logo.jpg" alt="MSI logo" className="w-10 h-10 object-contain" />
+            <Image src="/images/logo.jpg" alt="MSI logo" width={40} height={40} className="object-contain" />
             <span className={`${montserrat.className} text-xl font-bold text-red-500`}>MSI Gaming</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
@@ -74,7 +87,7 @@ export default function Cart() {
             <Link href="/about" className="text-gray-300 hover:text-red-500">About</Link>
           </div>
           <Link href="/cart">
-            <Button className="bg-red-600 hover:bg-red-700 text-white">🛒 Cart ({items.reduce((s,i)=>s+i.qty,0)})</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white">Cart ({items.reduce((s, i) => s + i.qty, 0)})</Button>
           </Link>
         </div>
       </nav>
@@ -85,29 +98,33 @@ export default function Cart() {
         {items.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-400 mb-6">Your cart is empty.</p>
-            <Link href="/products"><Button className="bg-red-600">Browse Products</Button></Link>
+            <Link href="/products">
+              <Button className="bg-red-600">Browse Products</Button>
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
               {items.map(it => {
                 const p = productFor(it.id)
-                if (!p) return (
-                  // Show a fallback row if product metadata is missing
-                  <Card key={it.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
-                    <CardContent className="p-6 flex items-center gap-6">
-                      <div className="flex-1">
-                        <h3 className="text-white font-semibold">Unknown product (ID: {it.id})</h3>
-                        <p className="text-gray-400">This product is no longer available.</p>
-                      </div>
-                      <div className="text-white font-bold">${(0 * it.qty).toFixed(2)}</div>
-                    </CardContent>
-                  </Card>
-                )
+                if (!p) {
+                  return (
+                    <Card key={it.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
+                      <CardContent className="p-6 flex items-center gap-6">
+                        <div className="flex-1">
+                          <h3 className="text-white font-semibold">Unknown product (ID: {it.id})</h3>
+                          <p className="text-gray-400">This product is no longer available.</p>
+                        </div>
+                        <div className="text-white font-bold">$0.00</div>
+                      </CardContent>
+                    </Card>
+                  )
+                }
+
                 return (
                   <Card key={it.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
                     <CardContent className="p-6 flex items-center gap-6">
-                      <img src={p.img} alt={p.name} className="w-28 h-20 object-cover rounded" />
+                      <Image src={p.img} alt={p.name} width={112} height={80} className="rounded object-cover" />
                       <div className="flex-1">
                         <h3 className="text-white font-semibold">{p.name}</h3>
                         <p className="text-gray-400">${p.price}</p>
