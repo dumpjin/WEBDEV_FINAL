@@ -81,17 +81,25 @@ export default function Products() {
     const cart = readCart()
     const idx = cart.findIndex(i => i.id === productId)
 
-if (idx !== -1) {
-  const current = cart[idx]
-  if (current) {
-    cart[idx] = {
-      id: current.id,
-      qty: current.qty + 1
+    if (idx !== -1) {
+      const current = cart[idx]
+      if (current) {
+        cart[idx] = {
+          id: current.id,
+          qty: current.qty + 1
+        }
+      }
+    } else {
+      cart.push({ id: productId, qty: 1 })
     }
+
+    localStorage.setItem("cart", JSON.stringify(cart))
+
+    const total = cart.reduce((sum, item) => sum + item.qty, 0)
+    setCartCount(total)
+
+    alert("Added to cart")
   }
-} else {
-  cart.push({ id: productId, qty: 1 })
-}
 
   return (
     <div className={`${inter.className} min-h-screen bg-black text-white`}>
