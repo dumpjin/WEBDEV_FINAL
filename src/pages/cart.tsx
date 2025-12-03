@@ -13,7 +13,14 @@ type CartItem = {
   qty: number
 }
 
-const PRODUCTS = [
+type Product = {
+  id: number
+  name: string
+  price: number
+  img: string
+}
+
+const PRODUCTS: Product[] = [
   { id: 1, name: "RTX 4090 Suprim X", price: 1999, img: "/images/msi2.jpg" },
   { id: 2, name: "RTX 4080 Gaming X", price: 1199, img: "/images/msi4.jpg" },
   { id: 3, name: "MPG Z790 Edge", price: 449, img: "/images/msi1.jpg" },
@@ -24,18 +31,26 @@ const PRODUCTS = [
 
 function safeParseCart(): CartItem[] {
   try {
-    const raw = JSON.parse(localStorage.getItem("cart") ?? "[]")
+    const stored = localStorage.getItem("cart")
+    if (!stored) return []
+    const raw = JSON.parse(stored)
     if (!Array.isArray(raw)) return []
+
     return raw
-      .map((r: unknown) => {
-        if (typeof r !== "object" || r === null) return null
-        const obj = r as Record<string, unknown>
-        const id = Number(obj.id)
-        const qty = Math.max(0, Number(obj.qty) || 0)
-        if (!Number.isInteger(id) || qty <= 0) return null
-        return { id, qty }
+      .map((item: unknown): CartItem | null => {
+        if (typeof item !== "object" || item === null) return null
+
+        const obj = item as Record<string, unknown>
+
+        const idValue = Number(obj.id)
+        const qtyValue = Number(obj.qty)
+
+        if (!Number.isInteger(idValue) || !Number.isFinite(qtyValue)) return null
+        if (qtyValue <= 0) return null
+
+        return { id: idValue, qty: qtyValue }
       })
-      .filter((x): x is CartItem => x !== null)
+      .filter((i): i is CartItem => i !== null)
   } catch {
     return []
   }
@@ -55,19 +70,21 @@ export default function Cart() {
     localStorage.setItem("cart", JSON.stringify(items))
   }, [items, mounted])
 
-  const productFor = (id: number) => PRODUCTS.find(p => p.id === id)
+  const productFor = (id: number): Product | undefined =>
+    PRODUCTS.find(p => p.id === id)
 
   const changeQty = (id: number, qty: number) => {
     if (qty <= 0) {
-      setItems(items.filter(i => i.id !== id))
-    } else {
-      setItems(items.map(i => (i.id === id ? { ...i, qty } : i)))
+      setItems(prev => prev.filter(i => i.id !== id))
+      return
     }
+    setItems(prev => prev.map(i => (i.id === id ? { ...i, qty } : i)))
   }
 
-  const subtotal = items.reduce((s, it) => {
-    const p = productFor(it.id)
-    return s + (p ? p.price * it.qty : 0)
+  const subtotal = items.reduce((sum, item) => {
+    const product = productFor(item.id)
+    if (!product) return sum
+    return sum + product.price * item.qty
   }, 0)
 
   const tax = subtotal * 0.1
@@ -87,7 +104,9 @@ export default function Cart() {
             <Link href="/about" className="text-gray-300 hover:text-red-500">About</Link>
           </div>
           <Link href="/cart">
-            <Button className="bg-red-600 hover:bg-red-700 text-white">Cart ({items.reduce((s, i) => s + i.qty, 0)})</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white">
+              Cart ({items.reduce((sum, i) => sum + i.qty, 0)})
+            </Button>
           </Link>
         </div>
       </nav>
@@ -105,14 +124,15 @@ export default function Cart() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
-              {items.map(it => {
-                const p = productFor(it.id)
-                if (!p) {
+              {items.map(item => {
+                const product = productFor(item.id)
+
+                if (!product) {
                   return (
-                    <Card key={it.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
+                    <Card key={item.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
                       <CardContent className="p-6 flex items-center gap-6">
                         <div className="flex-1">
-                          <h3 className="text-white font-semibold">Unknown product (ID: {it.id})</h3>
+                          <h3 className="text-white font-semibold">Unknown product (ID: {item.id})</h3>
                           <p className="text-gray-400">This product is no longer available.</p>
                         </div>
                         <div className="text-white font-bold">$0.00</div>
@@ -122,21 +142,21 @@ export default function Cart() {
                 }
 
                 return (
-                  <Card key={it.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
+                  <Card key={item.id} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30">
                     <CardContent className="p-6 flex items-center gap-6">
-                      <Image src={p.img} alt={p.name} width={112} height={80} className="rounded object-cover" />
+                      <Image src={product.img} alt={product.name} width={112} height={80} className="rounded object-cover" />
                       <div className="flex-1">
-                        <h3 className="text-white font-semibold">{p.name}</h3>
-                        <p className="text-gray-400">${p.price}</p>
+                        <h3 className="text-white font-semibold">{product.name}</h3>
+                        <p className="text-gray-400">${product.price}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => changeQty(it.id, it.qty - 1)} className="px-3 py-1 bg-black/40 rounded">−</button>
-                        <div className="px-4">{it.qty}</div>
-                        <button onClick={() => changeQty(it.id, it.qty + 1)} className="px-3 py-1 bg-black/40 rounded">+</button>
+                        <button onClick={() => changeQty(item.id, item.qty - 1)} className="px-3 py-1 bg-black/40 rounded">−</button>
+                        <div className="px-4">{item.qty}</div>
+                        <button onClick={() => changeQty(item.id, item.qty + 1)} className="px-3 py-1 bg-black/40 rounded">+</button>
                       </div>
                       <div className="text-right">
                         <div className="text-gray-400 text-sm">Line</div>
-                        <div className="text-white font-bold">${(p.price * it.qty).toFixed(2)}</div>
+                        <div className="text-white font-bold">${(product.price * item.qty).toFixed(2)}</div>
                       </div>
                     </CardContent>
                   </Card>
@@ -149,14 +169,16 @@ export default function Cart() {
                 <CardContent>
                   <h2 className={`${montserrat.className} text-xl font-bold mb-4`}>Order Summary</h2>
                   <div className="flex justify-between text-gray-400 mb-2"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-gray-400 mb-2"><span>Tax (10%)</span><span>${tax.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-gray-400 mb-2"><span>Tax (10 percent)</span><span>${tax.toFixed(2)}</span></div>
                   <div className="flex justify-between text-gray-400 mb-6"><span>Shipping</span><span>Free</span></div>
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-white font-bold">Total</span>
                     <span className={`${montserrat.className} text-2xl font-bold text-red-500`}>${total.toFixed(2)}</span>
                   </div>
                   <Button className="w-full bg-red-600 mb-3">Proceed to Checkout</Button>
-                  <Link href="/products"><Button variant="outline" className="w-full border-red-600 text-red-500">Continue Shopping</Button></Link>
+                  <Link href="/products">
+                    <Button variant="outline" className="w-full border-red-600 text-red-500">Continue Shopping</Button>
+                  </Link>
                 </CardContent>
               </Card>
             </aside>

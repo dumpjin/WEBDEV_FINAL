@@ -9,7 +9,22 @@ import { Montserrat, Inter } from "next/font/google"
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["600", "700", "800"] })
 const inter = Inter({ subsets: ["latin"] })
 
-const PRODUCTS = [
+// Types
+interface Product {
+  id: number
+  name: string
+  category: string
+  price: number
+  img: string
+  spec: string
+}
+
+interface CartItem {
+  id: number
+  qty: number
+}
+
+const PRODUCTS: Product[] = [
   { id: 1, name: "RTX 4090 Suprim X", category: "gpu", price: 1999, img: "/images/msi2.jpg", spec: "24GB GDDR6X" },
   { id: 2, name: "RTX 4080 Gaming X", category: "gpu", price: 1199, img: "/images/msi4.jpg", spec: "16GB GDDR6X" },
   { id: 3, name: "MPG Z790 Edge", category: "mobo", price: 449, img: "/images/msi1.jpg", spec: "LGA1700 • DDR5" },
@@ -18,9 +33,14 @@ const PRODUCTS = [
   { id: 6, name: "GK50Z RGB Keyboard", category: "periph", price: 129, img: "/images/msi6.jpg", spec: "Mechanical Switches" }
 ]
 
-function readCart() {
+// Safe cart reader
+function readCart(): CartItem[] {
   try {
-    return JSON.parse(localStorage.getItem("cart") || "[]")
+    const raw = localStorage.getItem("cart")
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(i => typeof i.id === "number" && typeof i.qty === "number")
   } catch {
     return []
   }
@@ -28,28 +48,40 @@ function readCart() {
 
 export default function Products() {
   const [category, setCategory] = useState<string>("all")
-  const [cartCount, setCartCount] = useState(0)
+  const [cartCount, setCartCount] = useState<number>(0)
 
   useEffect(() => {
-    setCartCount(readCart().reduce((s: any, i: any) => s + (i.qty || 0), 0))
+    const cart = readCart()
+    const total = cart.reduce((sum, item) => sum + (item.qty ?? 0), 0)
+    setCartCount(total)
   }, [])
 
-  const filtered = category === "all" ? PRODUCTS : PRODUCTS.filter(p => p.category === category)
+  const filtered: Product[] =
+    category === "all"
+      ? PRODUCTS
+      : PRODUCTS.filter(p => p.category === category)
 
   const addToCart = (productId: number) => {
     const cart = readCart()
-    const idx = cart.findIndex((c: any) => c.id === productId)
-    if (idx >= 0) cart[idx].qty += 1
-    else cart.push({ id: productId, qty: 1 })
+    const idx = cart.findIndex(i => i.id === productId)
+
+    if (idx >= 0 && cart[idx]) {
+      cart[idx].qty = ((cart[idx].qty as number) ?? 0) + 1
+    } else {
+      cart.push({ id: productId, qty: 1 })
+    }
+
     localStorage.setItem("cart", JSON.stringify(cart))
-    setCartCount(cart.reduce((s: any, i: any) => s + i.qty, 0))
-    // small UX feedback
+
+    const total = cart.reduce((sum, item) => sum + (item.qty ?? 0), 0)
+    setCartCount(total)
+
     alert("Added to cart")
   }
 
   return (
     <div className={`${inter.className} min-h-screen bg-black text-white`}>
-            <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/80 border-b border-red-900/30">
+      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/80 border-b border-red-900/30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img src="/images/logo.jpg" alt="MSI logo" className="w-10 h-10 object-contain" />
@@ -69,7 +101,7 @@ export default function Products() {
       <header className="pt-24 pb-8 bg-gradient-to-b from-red-900/10 to-black">
         <div className="max-w-7xl mx-auto px-6">
           <h1 className={`${montserrat.className} text-4xl font-bold mb-2`}>Products</h1>
-          <p className="text-gray-400">Browse our curated selection — click Add to Cart to save items.</p>
+          <p className="text-gray-400">Browse our curated selection. Click Add to Cart to save items.</p>
         </div>
       </header>
 
@@ -92,17 +124,26 @@ export default function Products() {
                 <img src={p.img} alt={p.name} className="w-full h-full object-cover transition-transform duration-300" />
               </div>
               <CardHeader>
-                <Badge className="bg-red-600/30 text-red-300 border border-red-600/50 w-fit mb-2">{p.category.toUpperCase()}</Badge>
+                <Badge className="bg-red-600/30 text-red-300 border border-red-600/50 w-fit mb-2">
+                  {p.category.toUpperCase()}
+                </Badge>
                 <CardTitle className="text-white">{p.name}</CardTitle>
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-gray-400">{p.spec}</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className={`${montserrat.className} text-2xl font-bold text-red-500`}>${p.price}</span>
+                  <span className={`${montserrat.className} text-2xl font-bold text-red-500`}>
+                    ${p.price}
+                  </span>
                 </div>
               </CardContent>
               <div className="p-4 border-t border-red-900/20">
-                <Button onClick={() => addToCart(p.id)} className="w-full bg-red-600 hover:bg-red-700">Add to Cart</Button>
+                <Button
+                  onClick={() => addToCart(p.id)}
+                  className="w-full bg-red-600 hover:bg-red-700"
+                >
+                  Add to Cart
+                </Button>
               </div>
             </Card>
           ))}

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
@@ -12,10 +13,12 @@ const montserrat = Montserrat({ subsets: ["latin"], weight: ["600", "700", "800"
 const inter = Inter({ subsets: ["latin"] })
 
 export default function Home() {
-  const [scrollY, setScrollY] = useState(0)
-
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
+    const handleScroll = () => {
+      // If you want scroll animations later, insert logic here
+      void window.scrollY
+    }
+
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
@@ -26,7 +29,7 @@ export default function Home() {
       <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/80 border-b border-red-900/30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/images/logo.jpg" alt="MSI logo" className="w-10 h-10 object-contain" />
+            <Image src="/images/logo.jpg" alt="MSI logo" width={40} height={40} className="object-contain" />
             <span className={`${montserrat.className} text-xl font-bold text-red-500`}>MSI Gaming</span>
           </Link>
 
@@ -47,8 +50,7 @@ export default function Home() {
       {/* HERO SECTION */}
       <section className="relative w-full h-screen flex items-center justify-center overflow-hidden pt-20">
         <div className="absolute inset-0 bg-gradient-to-b from-red-900/20 via-black to-black" />
-        
-        {/* Animated background elements */}
+
         <div className="absolute top-20 left-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
         <div className="absolute bottom-20 right-10 w-80 h-80 bg-red-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: "6s" }} />
 
@@ -81,7 +83,7 @@ export default function Home() {
       {/* FEATURED PRODUCTS CAROUSEL */}
       <section className="max-w-7xl mx-auto px-6 py-24">
         <h2 className={`${montserrat.className} text-4xl font-bold mb-2 text-white`}>Featured Gear</h2>
-        <p className="text-gray-400 mb-8">Premium gaming peripherals & components</p>
+        <p className="text-gray-400 mb-8">Premium gaming peripherals and components</p>
 
         <Carousel className="rounded-xl overflow-hidden border border-red-900/30">
           <CarouselContent>
@@ -89,10 +91,10 @@ export default function Home() {
               { name: "MPG Z790 Edge", type: "Motherboard", img: "/images/msi1.jpg" },
               { name: "RTX 4090 Suprim", type: "GPU", img: "/images/msi2.png" },
               { name: "MPG B850 Edge", type: "Motherboard", img: "/images/msi3.jpg" }
-            ].map((item, i) => (
-              <CarouselItem key={i}>
+            ].map((item, index) => (
+              <CarouselItem key={index}>
                 <div className="bg-gradient-to-br from-zinc-900 to-black rounded-lg overflow-hidden border border-red-900/20">
-                  <img src={item.img} alt={item.name} className="w-full h-80 object-cover" />
+                  <Image src={item.img} alt={item.name} width={1200} height={600} className="w-full h-80 object-cover" />
                   <div className="p-6">
                     <Badge className="bg-red-600/30 text-red-300 border border-red-600/50 mb-2">{item.type}</Badge>
                     <h3 className={`${montserrat.className} text-2xl font-bold text-white`}>{item.name}</h3>
@@ -113,21 +115,21 @@ export default function Home() {
         {[
           { icon: "⚡", title: "Maximum Performance", desc: "Engineered for competitive gaming and content creation" },
           { icon: "🌈", title: "RGB Lighting", desc: "Synchronized lighting across all components" },
-          { icon: "🛡️", title: "Premium Build", desc: "Military-grade components for durability" }
-        ].map((f, i) => (
-          <Card key={i} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30 hover:border-red-600/60 hover:shadow-[0_0_30px_rgba(220,38,38,0.2)] transition-all duration-300 hover:scale-105">
+          { icon: "🛡️", title: "Premium Build", desc: "High durability and long lifespan" }
+        ].map((feature, index) => (
+          <Card key={index} className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30 hover:border-red-600/60 hover:shadow-[0_0_30px_rgba(220,38,38,0.2)] transition-all duration-300 hover:scale-105">
             <CardHeader>
-              <div className="text-4xl mb-2">{f.icon}</div>
-              <CardTitle className="text-white text-xl">{f.title}</CardTitle>
+              <div className="text-4xl mb-2">{feature.icon}</div>
+              <CardTitle className="text-white text-xl">{feature.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-400">{f.desc}</p>
+              <p className="text-gray-400">{feature.desc}</p>
             </CardContent>
           </Card>
         ))}
       </section>
 
-      {/* TABS - PRODUCT CATEGORIES */}
+      {/* TABS */}
       <section className="max-w-7xl mx-auto px-6 py-24">
         <h2 className={`${montserrat.className} text-4xl font-bold mb-8 text-white`}>Product Categories</h2>
         <Tabs defaultValue="gpus" className="bg-gradient-to-br from-zinc-900 to-black border border-red-900/30 rounded-lg">
@@ -139,19 +141,19 @@ export default function Home() {
 
           <div className="p-8">
             <TabsContent value="gpus" className="text-gray-300">
-              High-performance NVIDIA & AMD graphics cards with advanced cooling solutions and high clock speeds.
+              High performance NVIDIA and AMD graphics cards with advanced cooling solutions.
             </TabsContent>
             <TabsContent value="mobos" className="text-gray-300">
-              Latest chipsets with PCIe 5.0, DDR5 support, and enhanced power delivery for overclocking enthusiasts.
+              Latest motherboards with DDR5 support, PCIe 5.0, and strong power delivery.
             </TabsContent>
             <TabsContent value="periph" className="text-gray-300">
-              Gaming mice, keyboards, and headsets with precision sensors and customizable RGB profiles.
+              Gaming mice, keyboards, and precision headsets with customizable RGB profiles.
             </TabsContent>
           </div>
         </Tabs>
       </section>
 
-      {/* CTA SECTION */}
+      {/* CTA */}
       <section className="max-w-7xl mx-auto px-6 py-24 text-center">
         <h2 className={`${montserrat.className} text-5xl font-bold mb-4 text-white`}>Ready to Level Up?</h2>
         <p className="text-gray-400 mb-8 text-lg">Join thousands of gamers choosing MSI for competitive advantage.</p>
