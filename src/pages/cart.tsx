@@ -29,14 +29,16 @@ const PRODUCTS: Product[] = [
   { id: 6, name: "GK50Z RGB Keyboard", price: 129, img: "/images/msi6.jpg" }
 ]
 
+
 function safeParseCart(): CartItem[] {
   try {
     const stored = localStorage.getItem("cart")
     if (!stored) return []
-    const raw = JSON.parse(stored)
-    if (!Array.isArray(raw)) return []
 
-    return raw
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
       .map((item: unknown): CartItem | null => {
         if (typeof item !== "object" || item === null) return null
 
@@ -45,7 +47,8 @@ function safeParseCart(): CartItem[] {
         const idValue = Number(obj.id)
         const qtyValue = Number(obj.qty)
 
-        if (!Number.isInteger(idValue) || !Number.isFinite(qtyValue)) return null
+        if (!Number.isInteger(idValue)) return null
+        if (!Number.isInteger(qtyValue)) return null
         if (qtyValue <= 0) return null
 
         return { id: idValue, qty: qtyValue }

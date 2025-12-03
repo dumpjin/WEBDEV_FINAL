@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
@@ -9,7 +10,6 @@ import { Montserrat, Inter } from "next/font/google"
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["600", "700", "800"] })
 const inter = Inter({ subsets: ["latin"] })
 
-// Types
 interface Product {
   id: number
   name: string
@@ -33,14 +33,30 @@ const PRODUCTS: Product[] = [
   { id: 6, name: "GK50Z RGB Keyboard", category: "periph", price: 129, img: "/images/msi6.jpg", spec: "Mechanical Switches" }
 ]
 
-// Safe cart reader
+// strict safe parser
 function readCart(): CartItem[] {
   try {
-    const raw = localStorage.getItem("cart")
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
+    const stored = localStorage.getItem("cart")
+    if (!stored) return []
+
+    const parsed: unknown = JSON.parse(stored)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(i => typeof i.id === "number" && typeof i.qty === "number")
+
+    return parsed
+      .map((item: unknown): CartItem | null => {
+        if (typeof item !== "object" || item === null) return null
+        const obj = item as Record<string, unknown>
+
+        const id = Number(obj.id)
+        const qty = Number(obj.qty)
+
+        if (!Number.isInteger(id)) return null
+        if (!Number.isInteger(qty)) return null
+        if (qty <= 0) return null
+
+        return { id, qty }
+      })
+      .filter((i): i is CartItem => i !== null)
   } catch {
     return []
   }
@@ -52,7 +68,7 @@ export default function Products() {
 
   useEffect(() => {
     const cart = readCart()
-    const total = cart.reduce((sum, item) => sum + (item.qty ?? 0), 0)
+    const total = cart.reduce((sum, item) => sum + item.qty, 0)
     setCartCount(total)
   }, [])
 
@@ -65,26 +81,24 @@ export default function Products() {
     const cart = readCart()
     const idx = cart.findIndex(i => i.id === productId)
 
-    if (idx >= 0 && cart[idx]) {
-      cart[idx].qty = ((cart[idx].qty as number) ?? 0) + 1
-    } else {
-      cart.push({ id: productId, qty: 1 })
+if (idx !== -1) {
+  const current = cart[idx]
+  if (current) {
+    cart[idx] = {
+      id: current.id,
+      qty: current.qty + 1
     }
-
-    localStorage.setItem("cart", JSON.stringify(cart))
-
-    const total = cart.reduce((sum, item) => sum + (item.qty ?? 0), 0)
-    setCartCount(total)
-
-    alert("Added to cart")
   }
+} else {
+  cart.push({ id: productId, qty: 1 })
+}
 
   return (
     <div className={`${inter.className} min-h-screen bg-black text-white`}>
       <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/80 border-b border-red-900/30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/images/logo.jpg" alt="MSI logo" className="w-10 h-10 object-contain" />
+            <Image src="/images/logo.jpg" alt="MSI logo" width={40} height={40} className="object-contain" />
             <span className={`${montserrat.className} text-xl font-bold text-red-500`}>MSI Gaming</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
@@ -121,7 +135,7 @@ export default function Products() {
           {filtered.map(p => (
             <Card key={p.id} className="flex flex-col bg-gradient-to-br from-zinc-900 to-black border border-red-900/30 hover:scale-105 transition">
               <div className="h-48 overflow-hidden bg-black">
-                <img src={p.img} alt={p.name} className="w-full h-full object-cover transition-transform duration-300" />
+                <Image src={p.img} alt={p.name} width={600} height={400} className="w-full h-full object-cover transition-transform duration-300" />
               </div>
               <CardHeader>
                 <Badge className="bg-red-600/30 text-red-300 border border-red-600/50 w-fit mb-2">
